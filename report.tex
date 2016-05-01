@@ -12,48 +12,40 @@
 \renewcommand{\abstractnamefont}{\normalfont\Large\bfseries}
 \renewcommand\bibname{References}
 
-\definecolor{dkgreen}{rgb}{0,0.6,0}
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
-\definecolor{mauve}{rgb}{0.58,0,0.82}
 
-\makeatletter
-\newcommand\footnoteref[1]{\protected@xdef\@thefnmark{\ref{#1}}\@footnotemark}
-\makeatother
-
-\lstdefinelanguage{RLamb}
-{morekeywords={let,letregion,in,end,at,void,int},
-  literate=
-    {->}{\ensuremath{\rightarrow}~}2
-    {<=}{\ensuremath{\leq}~}2    {>=}{\ensuremath{\geq}~}2
-    {R}{\ensuremath{\rho}}1
-    {R1}{\ensuremath{\rho_1}}1   {R2}{\ensuremath{\rho_2}}1
-    {R3}{\ensuremath{\rho_3}}1   {R4}{\ensuremath{\rho_4}}1
-    {R5}{\ensuremath{\rho_5}}1   {R6}{\ensuremath{\rho_6}}1
-    {RH}{\ensuremath{\rho_H}}1   {RL}{\ensuremath{\rho_L}}1
-    {A}{\ensuremath{a~}}1        {N}{\ensuremath{n~}}1
-    {P}{\ensuremath{p~}}1        {X}{\ensuremath{x~}}1
-    {Y}{\ensuremath{y~}}1        {Z}{\ensuremath{z~}}1
-    {\('L\)}{\ensuremath{_L}~}1
-    {\\:}{\ensuremath{\lambda}}1,
-  sensitive=f,
-  morecomment=[s]{/*}{*/},
-  morestring=[d]'
+\lstdefinelanguage{RLamb}{
+    morekeywords={let,letregion,in,end,at,void,int},
+    literate={->}{\ensuremath{\rightarrow}~}2
+             {<=}{\ensuremath{\leq}~}2    {>=}{\ensuremath{\geq}~}2
+             {R}{\ensuremath{\rho}}1
+             {R1}{\ensuremath{\rho_1}}1   {R2}{\ensuremath{\rho_2}}1
+             {R3}{\ensuremath{\rho_3}}1   {R4}{\ensuremath{\rho_4}}1
+             {R5}{\ensuremath{\rho_5}}1   {R6}{\ensuremath{\rho_6}}1
+             {RH}{\ensuremath{\rho_H}}1   {RL}{\ensuremath{\rho_L}}1
+             {A}{\ensuremath{a~}}1        {N}{\ensuremath{n~}}1
+             {P}{\ensuremath{p~}}1        {X}{\ensuremath{x~}}1
+             {Y}{\ensuremath{y~}}1        {Z}{\ensuremath{z~}}1
+             {\('L\)}{\ensuremath{_L}~}1
+             {\\:}{\ensuremath{\lambda}}1,
+    sensitive=f,
 }[keywords,comments,strings]
 
 \lstset{
-  language=RLamb,
-  aboveskip=3mm,
-  belowskip=3mm,
-  basicstyle={\small\ttfamily},
-  breakatwhitespace=true,
-  columns=flexible,
-  escapeinside={(@}{@)},
-  frame=l,
-  numbers=left,
-  numberstyle=\tiny\color{gray},
-  showstringspaces=false,
-  tabsize=4,
-  xleftmargin=4pt
+    language=RLamb,
+    aboveskip=3mm,
+    belowskip=3mm,
+    basicstyle={\small\ttfamily},
+    breakatwhitespace=true,
+    columns=flexible,
+    escapeinside={(@}{@)},
+    frame=l,
+    keepspaces=true,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    showstringspaces=false,
+    tabsize=4,
+    xleftmargin=4pt
 }
 
 \title{Seminar Report Draft}
@@ -136,7 +128,7 @@ In this model (as described by Tofte and Talpin\cite{tofterbmm}), the memory is 
 It is important to note that regions can only grow and do not shrink -- that is, values can only be put into it, and cannot be individually freed from it. Also, it should be emphasized that, in this scheme, the programmer cannot manage regions, and has no control over which values are put into which regions. Region Inference takes care of all association of values with regions. Before diving into the details of region inference, here’s a small example of the source language and the target language:
 
 \begin{lstlisting}
-let x = (2, 3) in (\:Y.(fst X, Y)) end 5
+let X = (2, 3) in (\:Y.(fst X, Y)) end 5
 \end{lstlisting}
 
 \noindent which translates to:
@@ -634,7 +626,7 @@ add_mut(b, 2.0); // ok
 
 \noindent That is, every reborrow supersedes the previous borrow as long as it exists (in-scope).
 
-\section*{More on Lifetimes}
+\section*{Lifetime}
 
 In Rust, \textit{concrete} lifetimes are hidden from the programmer except the so-called \texttt{'static} which indicates forever-lifetime. The programmer is supposed to play with abstract lifetimes, as parameters in a function or type. For example, the above \texttt{add\_six} function may be rewritten as follows with explicit lifetime annotation:
 
