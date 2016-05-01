@@ -1,0 +1,14 @@
+*.aux
+*.dvi
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*converted-to.pdf
+report.pdf
+slides.pdf
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
