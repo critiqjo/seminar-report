@@ -137,19 +137,32 @@
 \subsection{Definition}
 \begin{frame}{Region-Based Memory Management}
     \begin{columns}[T]
-        \begin{column}{.48\textwidth}
-            \begin{itemize}
-                \item Extended stack-based approach
-                \item Regions do not shrink -- pop as a whole
-                \item Each associated with a lexical scope
-            \end{itemize}
-        \end{column}
-        \hfill
-        \begin{column}{.48\textwidth}
+        \begin{column}{.40\textwidth}
             \begin{figure}[h]
-                \includegraphics[width=\textwidth]{regions-blocks.png}
+                \centering
+                \includegraphics[width=0.96\textwidth]{regions-blocks.png}
                 \caption{Stack of regions}
             \end{figure}
+        \end{column}
+        \hfill
+        \begin{column}{.56\textwidth}
+            \begin{itemize}
+                \item Extended stack-based approach
+                \begin{itemize}
+                    \item Simpler runtime
+                \end{itemize}
+                \item Regions do not shrink
+                \begin{itemize}
+                    \item Pop whole
+                \end{itemize}
+                \item Associated with a lexical scope
+                \pause
+                \item Approaches
+                \begin{itemize}
+                    \item Translation-based
+                    \item User-defined
+                \end{itemize}
+            \end{itemize}
         \end{column}
     \end{columns}
 \end{frame}
@@ -158,12 +171,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Example}
 
-\begin{frame}[fragile]{Region: Example}
+\begin{frame}[fragile]{Regions: Translation Example}
 \begin{lstlisting}
 let X = (2, 3) in (\:Y.(fst X, Y)) end 5
 \end{lstlisting}
-
-The above code translates to:
+\pause
+Gets translated to:
 
 \begin{lstlisting}
 letregion R4, R5
@@ -177,12 +190,12 @@ end
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Region: Example}
+\begin{frame}[fragile]{Regions: Translation Example}
 \begin{lstlisting}
 (@\snippet{let $x$ = (2, 3) in ($\lambda y$.(fst $x$, $y$)) end 5}@)
 \end{lstlisting}
 
-The above code translates to:
+Gets translated to:
 
 \begin{lstlisting}
 letregion R4, R5
@@ -196,19 +209,55 @@ end
 \end{lstlisting}
 \end{frame}
 
+\begin{frame}[fragile]{Regions: Translation Example: Execution}
+\begin{lstlisting}
+letregion R4, R5
+in letregion R6
+   in let X = (2 at R2, 3 at R6) at R4
+      in (\:Y.(fst X, Y) at R1) at R5
+      end
+   end
+   5 at R3
+end
+\end{lstlisting}
+
+steps here (separate out the steps pic, and highlight the line)
+
+\end{frame}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{\scshape Region Inference}
-\subsection{Terminologies}
-\begin{frame}{Region Inference: Terminologies}
-    
+\subsection{Key Ideas}
+\begin{frame}{Region Inference}
+    \begin{itemize}
+        \item Closures can capture local environments
+        \pause
+        \item Thus region accesses must be analyzed
+        \pause
+        \item Introduce an ``Effect System" to represent region accesses
+        % TODO small example
+        \pause
+        \item ``Effects" should be part of the type of closures
+        % TODO small example
+        \pause
+        \item If the type (+place) of an expr does not contain $\rho$, then
+        \pause
+        \begin{itemize}
+            \item Either $\rho$ is not accessed within
+            \pause
+            \item Or $\rho$ does not escape outside
+        \end{itemize}
+    \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Limitations}
 \begin{frame}{Limitations}
-    
+    \begin{itemize}
+        \item Whole program inference is bad!
+    \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -216,14 +265,14 @@ end
 \section{\scshape Cyclone}
 \subsection{Simplifying Regions}
 \begin{frame}{Cyclone: Simplifying Regions}
-
+    Skipping!
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Limitations}
 \begin{frame}{Cyclone: Limitations}
-    
+    Multi-threading and list of chunks
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -231,7 +280,9 @@ end
 \section{\scshape Linear Types}
 \subsection{Definition}
 \begin{frame}{Linear Types: Definition}
-
+    \begin{itemize}
+        \item Each object must be consumed exactly once
+    \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
