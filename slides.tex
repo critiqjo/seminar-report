@@ -14,7 +14,8 @@
 \usepackage{listings}
 \usepackage{color}
 \usepackage{mathtools}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\graphicspath{{diags/}}
 
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
 
@@ -55,6 +56,7 @@
 \definecolor{code}{RGB}{220, 20, 20}
 
 \newcommand{\snippet}[1] {\textcolor{code}{\texttt{#1}}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Beamer Layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \useoutertheme[subsection=false,shadow]{miniframes}
@@ -98,7 +100,6 @@
 }
 
 \begin{document}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -180,12 +181,12 @@ Gets translated to:
 
 \begin{lstlisting}
 letregion R4, R5
-in letregion R6
-   in let X = (2 at R2, 3 at R6) at R4
-      in (\:Y.(fst X, Y) at R1) at R5
-      end
-   end
-   5 at R3
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    end
+    5 at R3
 end
 \end{lstlisting}
 \end{frame}
@@ -199,37 +200,159 @@ Gets translated to:
 
 \begin{lstlisting}
 letregion R4, R5
-in letregion R6
-   in (@\snippet{let $x$ = (2}@) at R2(@\snippet{, 3}@) at R6(@\snippet{)}@) at R4
-      (@\snippet{in ($\lambda y$.(fst $x$, $y$)}@) at R1(@\snippet{)}@) at R5
-      (@\snippet{end}@)
-   end
-   (@\snippet{5}@) at R3
+in  letregion R6
+    in  (@\snippet{let $x$ = (2}@) at R2(@\snippet{, 3}@) at R6(@\snippet{)}@) at R4
+        (@\snippet{in~~($\lambda y$.(fst $x$, $y$)}@) at R1(@\snippet{)}@) at R5
+        (@\snippet{end}@)
+    end
+    (@\snippet{5}@) at R3
 end
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Regions: Translation Example: Execution}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
 \begin{lstlisting}
 letregion R4, R5
-in letregion R6
-   in let X = (2 at R2, 3 at R6) at R4
-      in (\:Y.(fst X, Y) at R1) at R5
-      end
-   end
-   5 at R3
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    end
+    5 at R3
 end
 \end{lstlisting}
 
-steps here (separate out the steps pic, and highlight the line)
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-1}
+\end{figure}
+\end{frame}
 
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  (@\snippet{letregion $\rho_6$}@)
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    end
+    5 at R3
+end
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-2}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  letregion R6
+    in  (@\snippet{let $x$ = (2 at $\rho_2$, 3 at $\rho_6$) at $\rho_4$}@)
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    end
+    5 at R3
+end
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-3}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (@\snippet{($\lambda y$.(fst $x$, $y$) at $\rho_1$) at $\rho_5$}@)
+        end
+    end
+    5 at R3
+end
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-4}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    (@\snippet{end}@)
+    5 at R3
+end
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-5}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    end
+    (@\snippet{5 at $\rho_3$}@)
+end
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-6}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (@\snippet{($\lambda y$.(fst $x$, $y$) at $\rho_1$) at $\rho_5$}@)
+        end
+    end
+    (@\snippet{5 at $\rho_3$}@)
+end
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-7}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Regions: Translation Example}{Execution}
+\begin{lstlisting}
+letregion R4, R5
+in  letregion R6
+    in  let X = (2 at R2, 3 at R6) at R4
+        in  (\:Y.(fst X, Y) at R1) at R5
+        end
+    end
+    5 at R3
+(@\snippet{end}@)
+\end{lstlisting}
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{regions-8}
+\end{figure}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{\scshape Region Inference}
 \subsection{Key Ideas}
-\begin{frame}{Region Inference}
+\begin{frame}{Region Inference}{Key Ideas}
     \begin{itemize}
         \item Closures can capture local environments
         \pause
@@ -263,9 +386,14 @@ steps here (separate out the steps pic, and highlight the line)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{\scshape Cyclone}
-\subsection{Simplifying Regions}
-\begin{frame}{Cyclone: Simplifying Regions}
-    Skipping!
+\subsection{User-defined regions}
+\begin{frame}{Cyclone}{User-defined regions}
+    {\large Goals}
+    \begin{itemize}
+        \item Fine-grained control over resources
+        \item Minimal inference -- no hidden meanings!
+        \item Provably-safe C-dialect
+    \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
