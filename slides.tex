@@ -14,6 +14,7 @@
 \usepackage{listings}
 \usepackage{color}
 \usepackage{mathtools}
+\usepackage{multicol}
 
 \graphicspath{{diags/}}
 
@@ -56,6 +57,12 @@
 \definecolor{code}{RGB}{220, 20, 20}
 
 \newcommand{\snippet}[1] {\textcolor{code}{\texttt{#1}}}
+
+\newcommand{\ttbf}[1] {\texttt{\textbf{#1}}}
+
+\newenvironment{smashedalign}
+               {\vspace{1mm}\small\par$\!\aligned\hspace{1.6em}}
+               {\endaligned$\par\vspace{1mm}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Beamer Layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -82,7 +89,7 @@
 \renewcommand{\>}{\end{column}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\title{Static Methods for Memory Management}
+\title{Safe and Static Methods for\\Memory Management}
 %\subtitle{SUBTITLE}
 
 \author{John~C~F}
@@ -112,7 +119,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}{Outline}
+
+\begin{multicols}{2}
 \tableofcontents
+\end{multicols}
+
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -359,17 +370,27 @@ in  letregion R6
         \item Thus region accesses must be analyzed
         \pause
         \item Introduce an ``Effect System" to represent region accesses
-        % TODO small example
+        \begin{smashedalign}
+        \epsilon = \{ get(\rho), put(\rho) \}
+        \end{smashedalign}
         \pause
         \item ``Effects" should be part of the type of closures
-        % TODO small example
+        \begin{smashedalign}
+            {\rm expression:}&~(\lambda y.(\mathtt{fst~} x, y) ~\ttbf{at}~ \rho_4) ~\ttbf{at}~ \rho_5
+            \\
+            {\rm has~type:}&~ (int, \rho_6) \xrightarrow{\epsilon.\{get(\rho_3), put(\rho_4)\}} ((int, \rho_1)*(int, \rho_6), \rho_4)
+            \\
+            {\rm place:}&~ \rho_5
+            \\
+            {\rm and~effect:}&~ \{put(\rho_5)\}
+        \end{smashedalign}
         \pause
-        \item If the type (+place) of an expr does not contain $\rho$, then
+        \item If the type-and-place of an $e$ does not contain a $\rho$, then
         \pause
         \begin{itemize}
-            \item Either $\rho$ is not accessed within
+            \item Either $\rho$ is not accessed within $e$
             \pause
-            \item Or $\rho$ does not escape outside
+            \item Or $\rho$ does not escape out of $e$
         \end{itemize}
     \end{itemize}
 \end{frame}
@@ -379,20 +400,49 @@ in  letregion R6
 \subsection{Limitations}
 \begin{frame}{Limitations}
     \begin{itemize}
-        \item Whole program inference is bad!
+        \item Programmer should be concerned about inference
+        % TODO example
+        \item Hard to keep track of highly complex programs
+        \item Small changes might cause a butterfly effect!
     \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\addtocontents{toc}{\newpage}
 \section{\scshape Cyclone}
 \subsection{User-defined regions}
-\begin{frame}{Cyclone}{User-defined regions}
+\begin{frame}{Cyclone: Safe C-like language}{User-defined regions}
     {\large Goals}
     \begin{itemize}
+        \item Guaranteed safety
+        \pause
         \item Fine-grained control over resources
-        \item Minimal inference -- no hidden meanings!
-        \item Provably-safe C-dialect
+        \pause
+        \item No hidden meanings -- minimal inference
+        \pause
+        \item And other usual systems language goals!
+    \end{itemize}
+    \pause
+    \vspace{1em}
+    \small Refer the report for a discussion of its semantics!
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Runtime implementation}
+\begin{frame}{Cyclone: Runtime implementation}
+    \begin{itemize}
+        \item Regions are represented by a list of memory pages
+        \pause
+        \item When program exits the scope of a region, the list is freed
+        \pause
+        \item Dynamic regions were not thread-safe
+        \pause
+        \begin{itemize}
+            \item Sharing across threads should be through the heap-regions
+            \item Heap regions conceptually live-forever and uses GC
+        \end{itemize}
     \end{itemize}
 \end{frame}
 
@@ -400,31 +450,125 @@ in  letregion R6
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Limitations}
 \begin{frame}{Cyclone: Limitations}
-    Multi-threading and list of chunks
+    Extension to provide thread-safety guarantees (including data-race freedom for all objects) had significant overheads (according to proposal \cite{grossmanthread}):
+    \pause
+    \begin{itemize}
+        \item If a region is shared between threads,
+        \begin{itemize}
+            \item Exiting ``the scope" should not free it
+            \pause
+            \item Thus, regions should maintain a \textit{list of threads} accessing it
+            \pause
+            \item This list must be protected by a mutex
+            \pause
+            \item When a thread exits, remove its entry from such lists
+            \pause
+            \begin{itemize}
+                \item If a list becomes empty, free the region
+            \end{itemize}
+        \end{itemize}
+        \pause
+        \item Increased complexity of type system to distinguish shared regions
+    \end{itemize}
+    \pause
+    The above proposal was shelved!
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{\scshape Linear Types}
 \subsection{Definition}
-\begin{frame}{Linear Types: Definition}
+\begin{frame}[fragile]{Linear Types: Definition}
+\textit{``Each object must be consumed exactly once."}
+
+\vspace{1.6em}
+
+An example:
+\begin{lstlisting}
+let a = 5;
+let b = 6;
+let c = add(a, b); // a and b are consumed
+print(c); // c is consumed
+print(a, b); // error!
+\end{lstlisting}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Advantages}
+\begin{frame}{Linear Types: Advantages}
     \begin{itemize}
-        \item Each object must be consumed exactly once
+        \item Safely reclaim resources after the (first) use
+        \pause
+        \item Statically enforce uniqueness when passing objects between threads
     \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Linear Types: Redefinition}
+Objects are uniquely bound to variables.
+\pause\par
+Redefinition of ``consume" in terms of variables:
+\begin{itemize}
+\item A variable is consumed when it goes out of scope.
+\pause
+\item A variable is consumed when it appears in an expression.
+\begin{lstlisting}
+f(a);
+\end{lstlisting}
+\begin{lstlisting}
+let b = a;
+\end{lstlisting}
+\begin{lstlisting}
+a;
+\end{lstlisting}
+\texttt{a} is consumed in all three cases.
+\end{itemize}
+\pause
+Resource reclamation is dependent on how the variable was consumed.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Relaxing Constraints}
-\begin{frame}{Linear Types: Relaxing Constraints}
-    
+\begin{frame}[fragile]{Linear Types: Relaxing Constraints}
+\begin{itemize}
+\item Working with numbers are unnecessarily hard:
+
+Introduce \texttt{Copy} types
+\begin{itemize}
+    \item Only get consumed by going out of scope
+    \item All numeric types are examples (but in our discussion, floating point numbers are assumed to be non-\texttt{Copy})
+\end{itemize}
+\item Aliasing can be convenient:
+\begin{lstlisting}
+let a = [1, 3, 5];
+let c = add(get(a, 0), get(a, 2)); // error!
+\end{lstlisting}
+Introduce ``Borrowing"...
+\end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Borrowing}
 \begin{frame}{Borrowing}
-    
+As far as safety is concerned, it is okay to
+\begin{itemize}
+    \item \textit{Temporarily} alias as long as only one reference remains when consumed.
+    \item Modify in-place as long as only one active reference exists when modified.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{\scshape References}
+\begin{frame}{References}
+\begin{thebibliography}{1}
+\bibitem{grossmanthread}
+Grossman, Dan. \textit{Type-Safe Multithreading in Cyclone.} ACM Workshop on Types in Language Design and Implementation, pages 13–25, New Orleans, LA, January 2003.
+\end{thebibliography}
 \end{frame}
 
 \end{document}
