@@ -18,8 +18,7 @@
 
 \lstdefinelanguage{RLamb}{
     morekeywords={let,letregion,in,end,at,void,int},
-    literate={->}{\ensuremath{\rightarrow}~}2
-             {<=}{\ensuremath{\leq}~}2    {>=}{\ensuremath{\geq}~}2
+    literate={<=}{\ensuremath{\leq}~}2    {>=}{\ensuremath{\geq}~}2
              {R}{\ensuremath{\rho}}1
              {R1}{\ensuremath{\rho_1}}1   {R2}{\ensuremath{\rho_2}}1
              {R3}{\ensuremath{\rho_3}}1   {R4}{\ensuremath{\rho_4}}1
@@ -333,7 +332,7 @@ One other issue with RBMM is concerning tail recursion. It is not always straigh
 
 Despite the fact that region inference works really well for many programs, it is not always possible to have the optimal reclamation of dead memory. Therefore, in MLKit\cite{mlkitgh} (the first practical language with a complete region inference system), a tracing Garbage Collector (GC) was introduced \cite{elsmanthesis} to minimize memory leaks. It was later proved that a certain type of tracing GC can be safely integrated with region inference \cite{elsmangc}.
 
-\chapter{Simplifying Regions}
+\chapter{User-defined Regions}
 
 In MLKit, the user writes code agnostic of memory management method and the compiler automatically associates each value generating expression with a region of smallest possible lifetime subject to safety constraints.
 
@@ -454,13 +453,15 @@ print(c); // c is consumed
 //print(a, b); // error!
 \end{lstlisting}
 
-Since objects are uniquely bound to a variable, we may redefine the meaning of ``consume" in terms of program variables: a variable is said to be consumed when it loses its binding to an object. That does not necessarily mean that the resources held by the object is released right away. Precisely answering when the underlying resource gets released can be difficult. But we can precisely define when a variable is consumed. Below are two rules of consumption:
+Since objects are uniquely bound to a variable, we may redefine the meaning of ``consume" in terms of program variables: a variable is said to be consumed when it loses its binding. Let's precisely define when that happens. Below are two rules of consumption:
 
 \begin{enumerate}
 \item A variable is consumed when it goes out of scope.\footnote{This makes the ``consume" implicit, and it might be appropriate to call it Affine Typing.}
+
+The underlying resources are released when this happens.
 \item A variable is consumed when it appears in an expression.\footnote{While pattern matching, this may not hold true. Depending on the pattern, the object may be consumed, borrowed (next section), or left untouched (a no-op).}
 
-This means that the variable \texttt{a} gets consumed in all three cases shown below:
+This means that, in all three cases shown below, the variable \texttt{a} gets consumed:
 
 \begin{lstlisting}
 f(a);
@@ -473,6 +474,8 @@ let b = a;
 \begin{lstlisting}
 a;
 \end{lstlisting}
+
+This is the reason that a ``consume" is called a ``move" in Rust terminology.
 \end{enumerate}
 
 These rules (almost) enforces Linear Typing, and enables some neat analysis. In particular, spawning a thread involves a function call (and a closure), and multiple variables may get consumed in the process. Thus, objects can be passed between threads without any scope for data race, since there is no aliasing.
@@ -533,7 +536,7 @@ let c = add(3.0, a); // error: a is borrowed
 \item Shared references are also \texttt{Copy} types. So \texttt{b} will not get consumed (and consequently the borrow does not end) until it goes out of scope.
 \end{itemize}
 
-In the next example, assume that \texttt{add\_ref} takes a shared reference as the second argument and adds its value to the first, then returns the result.
+In the next example, assume that \texttt{add\_ref} takes a shared reference as the second argument and magically adds its value to the first, then returns the result.
 
 \begin{lstlisting}
 let a = 8.0;
@@ -541,7 +544,7 @@ let a = 8.0;
     let b = &a;
     let c = add_ref(3.0, b);
 }   // borrow ends
-let d = add(3.0, a);
+let d = add(3.0, a); // ok
 \end{lstlisting}
 
 Now, since it is safe to update an object when it is not aliased (i.e. no borrow is in effect), another kind of borrow was introduced: a ``mutable borrow" which allowed in-place updates. \texttt{\&mut} is the operator for mutable borrowing. In the next example, assume that \texttt{add\_mut} takes in a mutable reference and updates it in-place.
@@ -558,7 +561,7 @@ An object's mutability is strictly unique. That is, an object cannot be mutably 
 let a = [1.0, 3.0, 5.0];
 let b = get_ref(&a, 2); // b = &a[2], indirectly borrowing `a'
 truncate(&mut a, 1); // drop the last two elements
-print(b); // dangling pointer dereference
+print(b); // possible dangling pointer dereference
 \end{lstlisting}
 
 The above program will not compile, of course. This means that Rust provides two guarantees:
@@ -567,9 +570,9 @@ The above program will not compile, of course. This means that Rust provides two
 \item If you hold a shared reference (\texttt{\&T}), you are guaranteed that it will not become invalid as long as you hold it.\footnotemark
 \item If you hold a mutable reference (\texttt{\&mut T}), you are guaranteed that you are having \textit{exclusive access} to it. Thus, even destroying (or rewriting) a part of it will not affect any other references that are alive at that moment.
 \end{itemize}
-\footnotetext{Rust does not guarantee that it will not be mutated because certain types may have ``internal mutability". Examples include wrappers which provide dynamic borrow-checking and mutual exclusion among others. But Rust guarantees that such mutations will not cause \textit{Undefined Behavior}.}
+\footnotetext{Rust does not guarantee that it will not be mutated because certain types may have ``internal mutability". Examples include wrappers which provide dynamic borrow-checking and mutual exclusion among others. But Rust guarantees that such mutations will not overlap and cause \textit{Undefined Behavior}.}
 
-Since a mutable reference is non-\texttt{Copy}, ideally, the borrow should end the first time it is consumed and the ``lender" (or ``owner") variable should become accessible. But this is not the case because keeping track of borrows through flow analysis can be inefficient and difficult to prove correctness. And this is where Rust meet Regions. Rust uses an algorithm based on Region Inference to keep track of borrows.
+Since a mutable reference is non-\texttt{Copy}, ideally, the borrow should end the first time it is consumed and the ``lender" (or ``owner") variable should become accessible. But this is not the case because keeping track of borrows through flow analysis is probably difficult to prove correctness of. And this is where Rust meets Regions. Rust uses an algorithm based on Region Inference to keep track of borrows.
 
 All borrows are associated with a lexical scope called the ``lifetime of borrow", and it represents the span of effect of that borrow. The reason for associating a lexical scope is so that lifetimes can have subtype (or outlives) relation between each other (no partial overlaps). This means that the following code is invalid:
 
@@ -581,7 +584,7 @@ if condition {
     let c = &mut a; // error: a is borrowed
 }
 \end{lstlisting}
-\footnotetext{This is not exactly true since Rust automatically converts it to a reborrow (discussed later). To keep things explicit, we will ignore that feature of Rust. By the way, \texttt{b;} \textit{will} consume \texttt{b} in Rust.}
+\footnotetext{This is not exactly true since Rust automatically makes it a reborrow (discussed next). To keep things explicit, we will ignore that feature of Rust.}
 
 The lifetime of a reference is upper-bounded by the scope of the owning variable. And inside the lifetime of the borrower, the object cannot be consumed (consumption rule 4).
 
@@ -609,37 +612,32 @@ fn add_six(b: &mut u32) {
 
 \begin{lstlisting}
 fn add_six(b: &mut u32) {
-    add_mut(&mut *b, 4.0); // reborrow and consume
+    add_mut(&mut *b, 4.0); // reborrow and consume the reference
     add_mut(b, 2.0); // ok
 }
 \end{lstlisting}
 
-\noindent But of course, reborrowing does \textit{not} allow aliasing mutability:
+Reborrow is like dereference + borrow, but due to the 3rd rule, the dereferece does not result in consume semantics (copy or ``move"). And of course, reborrowing does \textit{not} allow aliasing mutability:
 
 \begin{lstlisting}
 let mut a = 8.0;
 let b = &mut a;
 {
     let c = &mut *b; // reborrow
-    //add_mut(b, 2.0); // error: b is reborrowed
+    //add_mut(b, 2.0); // error: *b is borrowed
 }
 add_mut(b, 2.0); // ok
 \end{lstlisting}
 
-\noindent That is, every reborrow supersedes the previous borrow as long as it exists (in-scope).
-
 \section*{Lifetime}
 
-In Rust, \textit{concrete} lifetimes are hidden from the programmer except the so-called \texttt{'static} which indicates forever-lifetime. The programmer is supposed to play with abstract lifetimes, as parameters in a function or type. For example, the above \texttt{add\_six} function may be rewritten as follows with explicit lifetime annotation:
+In Rust, \textit{concrete} lifetimes are hidden from the programmer except the so-called \texttt{'static} which indicates forever-lifetime. The programmer is supposed to play with abstract lifetimes, as parameters in a function or type. For example, the function signature of the function \texttt{add\_six} (above) may be rewritten as follows with explicit lifetime annotation:
 
 \begin{lstlisting}
-fn add_six<'a>(b: &'a mut u32) {
-    add_mut(&mut *b, 4.0);
-    add_mut(b, 2.0);
-}
+fn add_six<'a>(b: &'a mut u32) { ... }
 \end{lstlisting}
 
-The lifetime parameter \texttt{'a} is kept abstract, even during analysis of the above function, with the assumption that \texttt{'a} outlives the entire scope of the function. Do note that, similar to Cyclone, Rust does not do whole-program lifetime inference. All inference takes place at an intra-procedural level, and therefore the programmer is required to insert explicit lifetime annotations wherever a set of default annotation rules is not appropriate. Thus, at the site of a function call, the compiler need to only check for inconsistencies with the given lifetime constraints of the function signature. We will take a closer look at this, but first, let us take a look at how the compiler assigns concrete lifetimes to a simple program:
+The lifetime parameter \texttt{'a} is kept abstract, even during analysis of the above function, with the assumption that \texttt{'a} outlives the entire scope of the function. Do note that, similar to Cyclone, Rust does not do whole-program lifetime inference. All inference takes place at an intra-procedural level, and therefore the programmer is required to insert explicit lifetime annotations wherever a set of default annotation rules is not appropriate. Thus, at the site of a function call, the compiler need to only check for inconsistencies with the lifetime constraints given in the function signature. We will take a closer look at this, but first, let us see how the compiler assigns concrete lifetimes to a simple program:
 
 \begin{lstlisting}
 let mut a = 8.0;
@@ -665,20 +663,22 @@ let mut a = 8.0;
 }
 \end{lstlisting}
 
-Note that the short scope of \texttt{'z} indicate that the reborrow is short-lived, after which \texttt{b} can be used (i.e. \texttt{b} becomes live). It is worth emphasizing that scopes \textit{cannot} be assigned concrete names by the programmer, and used in reference lifetimes, as shown above.
+Note that the short scope of \texttt{'z} indicate that the reborrow is short-lived, after which \texttt{b} can be used (i.e. \texttt{b} becomes live). It is worth emphasizing that scopes \textit{cannot} be assigned concrete names by the programmer as shown above.
 
 Now, let's try a slightly more complex program involving two functions:
 
 \begin{lstlisting}
 fn max_ref<'a>(x: &'a u32, y: &'a u32) -> &'a u32 {
-    if *a > *b { // (@\footnotemark@)
+    if *a > *b { // side note(@\footnotemark@)
         return a;
     } else {
         return b;
     }
 }
 \end{lstlisting}
-\footnotetext{Yes, Rust has the dereference operator \texttt{*}, but we will not go into the details of its semantics.}
+\footnotetext{A dereference (without reborrow) is valid only if it is either a reference to a \texttt{Copy} type, or if it is a mutable reference and is used as an \textit{lvalue}.}
+
+\newpage
 
 \begin{lstlisting}
 fn main() {
@@ -714,7 +714,7 @@ The compiler will view the \texttt{main} function as follows:
 }
 \end{lstlisting}
 
-Note that \texttt{ur} and \texttt{vr} have different associated lifetimes. When the lifetime constraints (such as lifetime equality assertion) does not match that of the actual arguments, the compiler tries to make them match subject to a set of variance rules. In the above case, one of the variance rules states that \texttt{\&'a T} is covariant w.r.t both \texttt{'a} and \texttt{T}. It means that the compiler is free to shrink the lifetime of \texttt{ur} to match that of \texttt{vr}.
+Note that \texttt{ur} and \texttt{vr} have different associated lifetimes. When the lifetime constraints (such as lifetime equality assertion) does not match that of the actual arguments, the compiler tries to make them match, subject to a set of variance rules. In the above case, as per one of the variance rules, \texttt{\&'a T} is covariant w.r.t both \texttt{'a} and \texttt{T}. It means that the compiler is free to shrink the lifetime of \texttt{ur} to match that of \texttt{vr}.
 
 Thus the type of \texttt{mr} will be \texttt{\&'d u32}. There is a catch: the reference returned by \texttt{max\_ref} effectively borrows both the arguments, due to the lifetime-equality assertion between the input parameters and the output. Consequently, \texttt{max\_ref(ur, vr)} cannot escape beyond the scope of \texttt{'c}, even though the actual reference returned is \texttt{\&u}.
 
@@ -763,13 +763,13 @@ fn foo(c: i8) {
 
 \noindent Points of note:
 \begin{itemize}
-\item In the function definition, the inner lifetimes of both references \texttt{pp1} and \texttt{pp2} are annotated to be the same. When there is such an assertion of lifetime equality and the lifetimes in the actual arguments differ, the compiler tries to shrink all bigger lifetimes to match the smallest one, subject to a set of variance rules.
-\item \texttt{\&T} is covariant w.r.t \texttt{T} but \texttt{\&mut T} is invariant w.r.t \texttt{T}. Therefore, in the former example, the inner lifetime of \texttt{\&mut x} is not shrunk to match that of \texttt{\&y} (which would be unsafe), but in the latter example, the inner lifetime of \texttt{\&x} is shrunk to match that of \texttt{\&mut y}.
+\item In the function definition, the inner lifetimes of both references \texttt{pp1} and \texttt{pp2} are annotated to be the same. As we said before, the compiler tries to make the arguments match the constraints given in the function signature, and in the above case, by shrinking all bigger lifetimes to match the smallest one, subject to variance rules.
+\item As per those rules, \texttt{\&T} is covariant w.r.t \texttt{T} but \texttt{\&mut T} is invariant w.r.t \texttt{T}. Therefore, in the former example, the inner lifetime of \texttt{\&mut x} is not shrunk to match that of \texttt{\&y} (which would be unsafe), but in the latter example, the inner lifetime of \texttt{\&x} is shrunk to match that of \texttt{\&mut y}.
 \end{itemize}
 
-These concepts of ownership (linear typing) and lifetimes only exist at compile-time, and therefore no region-management is required at runtime.
+As you can see, these notions of linear typing (a.k.a ownership) and lifetimes only exist during compilation, and therefore runtime overheads are close to zero.
 
-Rust provides type abstraction and polymorphism via its ``trait-based" type system. Traits are similar to Haskell type classes or Java interfaces. Rust's type system (traits + ownership + lifetimes) is powerful enough to enforce thread-safety constraints without the compiler having special knowledge about threads. A discussion on traits is beyond the scope of this report.
+Rust also provides type abstraction and polymorphism via its ``trait-based" type system. Traits are similar to Haskell type classes or Java interfaces. Rust's type system (traits + ownership + lifetimes) is powerful enough to enforce thread-safety constraints without the compiler having special knowledge about threads. A discussion on traits is beyond the scope of this report.
 
 \chapter*{Conclusion}
 \addcontentsline{toc}{chapter}{Conclusion}
@@ -777,7 +777,7 @@ Rust provides type abstraction and polymorphism via its ``trait-based" type syst
 In our short survey of literature on provably safe methods to manage memory, we found that seemingly unrelated concepts can be mixed together to create very powerful, efficient, and practical tools that provide strong safety guarantees as well as allow fine-grained resource management.
 
 \begin{thebibliography}{10}
-\addcontentsline{toc}{chapter}{Bibliography}
+\addcontentsline{toc}{chapter}{References}
 \bibitem{tofterbmm}
 Mads Tofte and Jean-Pierre Talpin. \textit{Region-Based Memory Management.} In Information and Computation 132(2), pages 109-176. 1997.
 
