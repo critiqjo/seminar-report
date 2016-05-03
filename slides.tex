@@ -21,7 +21,7 @@
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
 
 \lstdefinelanguage{RLamb}{
-    morekeywords={let,letregion,in,end,at,void,int},
+    morekeywords={let,letregion,in,end,at,void,int,if,else,return,fn,mut},
     literate={->}{\ensuremath{\rightarrow}~}2
              {<=}{\ensuremath{\leq}~}2    {>=}{\ensuremath{\geq}~}2
              {R}{\ensuremath{\rho}}1
@@ -89,7 +89,7 @@
 \renewcommand{\>}{\end{column}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\title{Safe and Static Methods for\\Memory Management}
+\title{Static Methods for Safe Memory Management}
 %\subtitle{SUBTITLE}
 
 \author{John~C~F}
@@ -133,7 +133,9 @@
     \begin{itemize}
         \item Humans cannot be trusted with memory!
         \pause
-        \item Garbage collection can get too slow!
+        \item Garbage collection can be slow!
+        \pause
+        \item Humans are greedy! We want both safety and performance!
         \pause
         \item Enter static analysis
         \begin{itemize}
@@ -450,7 +452,7 @@ in  letregion R6
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Limitations}
 \begin{frame}{Cyclone: Limitations}
-    Extension to provide thread-safety guarantees (including data-race freedom for all objects) had significant overheads (according to proposal \cite{grossmanthread}):
+    Extension to provide thread-safety guarantees (including data-race freedom for all objects) had significant overheads (according to a formally proved proposal):
     \pause
     \begin{itemize}
         \item If a region is shared between threads,
@@ -556,19 +558,181 @@ Introduce ``Borrowing"...
 \begin{frame}{Borrowing}
 As far as safety is concerned, it is okay to
 \begin{itemize}
-    \item \textit{Temporarily} alias as long as only one reference remains when consumed.
+    \item \textit{Temporarily alias} as long as only one reference remains when consumed.
+    \pause
     \item Modify in-place as long as only one active reference exists when modified.
+\end{itemize}
+\pause
+Introducing: Shared Borrow (\texttt{\&}), and Mutable Borrow (\texttt{\&mut}), with additional rules of consumption:
+\begin{itemize}
+\item A variable does not get consumed in a reference-creating expression (which is using a borrow operator).
+\pause
+\item A variable must not be consumed when a borrow is in effect.
 \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section*{\scshape References}
-\begin{frame}{References}
-\begin{thebibliography}{1}
-\bibitem{grossmanthread}
-Grossman, Dan. \textit{Type-Safe Multithreading in Cyclone.} ACM Workshop on Types in Language Design and Implementation, pages 13–25, New Orleans, LA, January 2003.
-\end{thebibliography}
+\begin{frame}[fragile]{Borrowing}{In action -- Hypothetical examples}
+\begin{lstlisting}
+let a = [1, 3, 5];
+let c = add(get_copy(&a, 0), get_copy(&a, 2));
+\end{lstlisting}
+\pause
+
+\begin{lstlisting}
+let a = 8.0;
+{   // introduce a new scope
+    let b = &a;
+    let c = add_ref(3.0, b);
+}   // borrow ends
+let d = add(3.0, a);
+\end{lstlisting}
+\pause
+
+\begin{lstlisting}
+let mut a = 8.0; // mark as (@in@)-place updateable
+add_mut(&mut a, 4.0);
+\end{lstlisting}
+\pause
+Refer the report for detailed semantics (e.g. reborrowing)!
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Lifetimes}
+\begin{frame}{Lifetimes}{Keeping track of borrows}
+
+Each borrow is associated with a lexical scope called ``lifetime":
+
+\begin{itemize}
+\item Spanning all its use
+\pause
+\item Upper-bounded by the scope of the owner (or lender)
+\pause
+\item Inside which the owner cannot be consumed
+\end{itemize}
+
+\pause
+The lifetime inference is very similar to Region Inference but:
+
+\begin{itemize}
+\item All inference is intra-procedural
+\pause
+\item The programmer plays with abstract lifetimes
+\pause
+\item The lifetime of a reference returned by a function is inferred looking at the function signature alone
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Lifetimes}{In action}
+\begin{columns}[T]
+\begin{column}{.40\textwidth}
+\begin{lstlisting}[basicstyle=\footnotesize\ttfamily,numbers=none]
+let mut a = 8.0;
+{
+    let b = &mut a;
+    add_mut(&mut *b, 6.0);
+    add_mut(b, 2.0);
+}
+\end{lstlisting}
+This program is \textit{seen by the compiler} as shown to the right.
+\end{column}
+\hfill
+\begin{column}{.56\textwidth}
+\begin{lstlisting}[basicstyle=\footnotesize\ttfamily,numbers=none]
+'x: {
+    let mut a = 8.0;
+    'y: {
+        let b = &'y mut a;
+        'z: {
+            add_mut(&'z mut *b, 6.0);
+        }
+        add_mut(b, 2.0);
+    }
+}
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Lifetimes}{In action (continued)}
+\begin{lstlisting}[basicstyle=\footnotesize\ttfamily]
+fn max_ref<'a>(x: &'a u32, y: &'a u32) -> &'a u32 {
+    if *a > *b { // (@\footnotemark@)
+        return a;
+    } else {
+        return b;
+    }
+}
+
+fn main() {
+    let u = 8;
+    let ur = &u;
+    {
+        let v = 4;
+        let vr = &v;
+        let mr = max_ref(ur, vr);
+        print(mr);
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Lifetimes}{In action (continued)}
+
+\begin{columns}[T]
+\begin{column}{.37\textwidth}
+The \texttt{main} block...
+\begin{lstlisting}[basicstyle=\footnotesize\ttfamily,numbers=none]
+let u = 8;
+let ur = &u;
+{
+  let v = 4;
+  let vr = &v;
+  let mr = max_ref(ur,vr);
+  print(mr);
+}
+\end{lstlisting}
+...is seen by the compiler as shown to the right.
+
+\texttt{mr} cannot escape \texttt{'c}.
+\end{column}
+\hfill
+\begin{column}{.61\textwidth}
+\begin{lstlisting}[basicstyle=\footnotesize\ttfamily,numbers=none]
+'a: {
+  let u = 8;
+  'b: {
+    let ur = &'b u;
+    'c: {
+      let v = 4;
+      'd: {
+        let vr = &'d v;
+        'e: {
+          let mr = max_ref(ur, vr);
+          print(mr);
+        }
+      }
+    }
+  }
+}
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{Thank you!}
+Questions?
 \end{frame}
 
 \end{document}
