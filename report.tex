@@ -59,19 +59,18 @@
         \fontfamily{ptm}
         {\LARGE \bfseries Safe and Static Methods for Memory Management \par}
         \vspace{\stretch{0.3}}
-        { \large \em \fontfamily{pzc} 
-            A Seminar Report \\ [.25\baselineskip] 
-            submitted in partial fulfillment of the \\ [.25\baselineskip] 
-            requirements for the degree of \\ [.25\baselineskip] 
-            {\fontfamily{ppl} \bfseries  Master of Technology } \\ [.5\baselineskip] 
+        { \large \em \fontfamily{pzc}
+            A Seminar Report \\ [.25\baselineskip]
+            submitted in partial fulfillment of the \\ [.25\baselineskip]
+            requirements for the degree of \\ [.25\baselineskip]
+            {\fontfamily{ppl} \bfseries  Master of Technology } \\ [.5\baselineskip]
             by \par
         }
-        \vspace{\stretch{0.1}}
+        \vspace{.5\baselineskip}
         {\large \bfseries John C F\par}
-        \vspace{.25\baselineskip}
-        {\large 14305R006}\vspace{\stretch{0.3}}
+        \vspace{\stretch{0.3}}
 
-        {\large Under the guidance of\par}\vspace{.25\baselineskip}
+        {\large Under the guidance of\par}\vspace{.5\baselineskip}
         {\large \bfseries Prof. Amitabha Sanyal \par}
 
         \vspace{\stretch{0.3}}
@@ -80,8 +79,7 @@
         {\fontfamily{ptm}
             \vspace{\stretch{0.1}}
             {\large Computer Science \& Engineering\\[0.25\baselineskip]
-                Indian Institute of Technology Bombay \\[0.25\baselineskip]
-                Mumbai 400076  (India) }
+                Indian Institute of Technology, Bombay}
             \\[0.5\baselineskip]
             {\large April 2016 \par}
         }
@@ -572,7 +570,7 @@ The above program will not compile, of course. This means that Rust provides two
 \end{itemize}
 \footnotetext{Rust does not guarantee that it will not be mutated because certain types may have ``internal mutability". Examples include wrappers which provide dynamic borrow-checking and mutual exclusion among others. But Rust guarantees that such mutations will not overlap and cause \textit{Undefined Behavior}.}
 
-Since a mutable reference is non-\texttt{Copy}, ideally, the borrow should end the first time it is consumed and the ``lender" (or ``owner") variable should become accessible. But this is not the case because keeping track of borrows through flow analysis is probably difficult to prove correctness of. And this is where Rust meets Regions. Rust uses an algorithm based on Region Inference to keep track of borrows.
+Since a mutable reference is non-\texttt{Copy}, ideally, the borrow should end the first time it is consumed and the ``lender" (or ``owner") variable should become accessible. But this is not the case because keeping track of borrows through flow/liveness analysis is probably difficult to prove correctness of (but this is a planned feature). Anyway, as of now, this is where Rust meets Regions. Rust uses an algorithm based on Region Inference to keep track of borrows.
 
 All borrows are associated with a lexical scope called the ``lifetime of borrow", and it represents the span of effect of that borrow. The reason for associating a lexical scope is so that lifetimes can have subtype (or outlives) relation between each other (no partial overlaps). This means that the following code is invalid:
 
@@ -714,7 +712,7 @@ The compiler will view the \texttt{main} function as follows:
 }
 \end{lstlisting}
 
-Note that \texttt{ur} and \texttt{vr} have different associated lifetimes. When the lifetime constraints (such as lifetime equality assertion) does not match that of the actual arguments, the compiler tries to make them match, subject to a set of variance rules. In the above case, as per one of the variance rules, \texttt{\&'a T} is covariant w.r.t both \texttt{'a} and \texttt{T}. It means that the compiler is free to shrink the lifetime of \texttt{ur} to match that of \texttt{vr}.
+When the lifetime constraints (such as lifetime equality assertion) does not match that of the actual arguments (\texttt{ur} and \texttt{vr} having different associated lifetimes), the compiler tries to make them match, subject to a set of variance rules. In the above case, as per one of the variance rules, \texttt{\&'a T} is covariant w.r.t both \texttt{'a} and \texttt{T}. It means that the compiler is free to shrink the lifetime of \texttt{ur} to match that of \texttt{vr} (since shorter lifetime is more general).
 
 Thus the type of \texttt{mr} will be \texttt{\&'d u32}. There is a catch: the reference returned by \texttt{max\_ref} effectively borrows both the arguments, due to the lifetime-equality assertion between the input parameters and the output. Consequently, \texttt{max\_ref(ur, vr)} cannot escape beyond the scope of \texttt{'c}, even though the actual reference returned is \texttt{\&u}.
 
