@@ -7,11 +7,9 @@
 \usepackage{mathtools}
 \usepackage{graphicx}
 \usepackage{wrapfig}
-\usepackage{abstract}
 
 \graphicspath{{diags/}}
 
-\renewcommand{\abstractnamefont}{\normalfont\Large\bfseries}
 \renewcommand\bibname{References}
 
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
@@ -56,39 +54,25 @@
 \begin{document}
 \begin{titlepage}
     \begin{center}
-        \fontfamily{ptm}
+        ~\par \vspace{\stretch{0.4}}
         {\LARGE \bfseries Safe and Static Methods for Memory Management \par}
-        \vspace{\stretch{0.3}}
-        { \large \em \fontfamily{pzc}
-            A Seminar Report \\ [.25\baselineskip]
-            submitted in partial fulfillment of the \\ [.25\baselineskip]
-            requirements for the degree of \\ [.25\baselineskip]
-            {\fontfamily{ppl} \bfseries  Master of Technology } \\ [.5\baselineskip]
-            by \par
-        }
-        \vspace{.5\baselineskip}
-        {\large \bfseries John C F\par}
-        \vspace{\stretch{0.3}}
+        \vspace{\stretch{0.2}}
 
-        {\large Under the guidance of\par}\vspace{.5\baselineskip}
-        {\large \bfseries Prof. Amitabha Sanyal \par}
+        {\large John C F\par}
+        \vspace{\stretch{0.2}}
 
-        \vspace{\stretch{0.3}}
-        \includegraphics[width=10em]{iitb-black}
+        {\large \em \fontfamily{pzc} Supervisor:\par}\vspace{.5\baselineskip}
+        {\large Dr. Amitabha Sanyal \par}
 
-        {\fontfamily{ptm}
-            \vspace{\stretch{0.1}}
-            {\large Computer Science \& Engineering\\[0.25\baselineskip]
-                Indian Institute of Technology, Bombay}
-            \\[0.5\baselineskip]
-            {\large April 2016 \par}
-        }
+        \vspace{\stretch{0.2}}
+        {\large Dept. of Computer Science \& Engg.\\[0.5\baselineskip]
+            Indian Institute of Technology, Bombay \par}
+
+        \vspace{\stretch{0.2}}
+        {\large May 2016}
     \end{center}
+    \vspace{\stretch{0.4}}
 \end{titlepage}
-
-\begin{abstract}
-    Memory management is one of the major concerns when building reasonably complex programs. In this report, we will investigate two static methods of analyzing programs so as to minimize the effort needed at runtime for resource management.
-\end{abstract}
 
 \tableofcontents
 
